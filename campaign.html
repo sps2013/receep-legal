@@ -38,6 +38,11 @@
   }
   .btn.primary { background: #fff; color: var(--brand); }
   .btn.ghost { border-color: rgba(255,255,255,.55); color: #fff; }
+  .btn.share {
+    width: 46px; height: 44px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    vertical-align: top;
+  }
   .campaign h2 { font-size: 19px; margin: 30px 0 12px; }
   .steps { list-style: none; padding: 0; margin: 0; counter-reset: step; }
   .steps li { position: relative; padding-left: 40px; margin: 14px 0; }
@@ -75,7 +80,7 @@
 <body>
 <div class="wrap campaign">
   <header class="site">
-    <div class="brand"><span class="mark"></span>Receep</div>
+    <div class="brand"><span class="mark"></span><span data-lang="zh">落袋</span><span data-lang="en" hidden>Receep</span></div>
     <div class="lang-switch">
       <button type="button" data-set-lang="zh" class="on">简体中文</button>
       <button type="button" data-set-lang="en">English</button>
@@ -99,15 +104,20 @@
       <p>数量有限 · 先到先得 · 每个 Apple ID 限一次</p>
       <span class="pill">活动截止：2026 年 12 月 30 日</span>
       <div>
-        <button type="button" class="btn primary" data-share data-copied="链接已复制">分享 App</button>
-        <a class="btn ghost" href="https://apps.apple.com/app/id6826865048">前往 App Store</a>
+        <button type="button" class="btn primary share" data-share aria-label="分享海报">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 15V3M8 7l4-4 4 4"/>
+            <path d="M4 11h16v8H4z"/>
+          </svg>
+        </button>
       </div>
     </div>
 
     <h2>参与方式</h2>
     <ol class="steps">
-      <li><strong>分享 App 或海报</strong><span>用系统分享面板发到任意社交平台</span></li>
-      <li><strong>截图已发布的内容</strong><span>截取包含 App 名称或海报的页面</span></li>
+      <li><strong>分享海报</strong><span>点上方分享按钮，用系统分享面板发到任意社交平台</span></li>
+      <li><strong>截图已发布的内容</strong><span>截取包含海报或 App 名称的页面</span></li>
       <li><strong>发送到活动邮箱</strong><span>附上截图，可先打码个人信息</span></li>
       <li><strong>收到兑换码</strong><span>人工核验后 3 个工作日内回复</span></li>
     </ol>
@@ -168,15 +178,20 @@
       <p>Limited supply · First come, first served · One per Apple ID</p>
       <span class="pill">Ends December 30, 2026</span>
       <div>
-        <button type="button" class="btn primary" data-share data-copied="Link copied">Share the app</button>
-        <a class="btn ghost" href="https://apps.apple.com/app/id6826865048">View on the App Store</a>
+        <button type="button" class="btn primary share" data-share aria-label="Share poster">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 15V3M8 7l4-4 4 4"/>
+            <path d="M4 11h16v8H4z"/>
+          </svg>
+        </button>
       </div>
     </div>
 
     <h2>How it works</h2>
     <ol class="steps">
-      <li><strong>Share the app or poster</strong><span>Use the share sheet to post on any social platform</span></li>
-      <li><strong>Screenshot your post</strong><span>Capture the page showing the app name or poster</span></li>
+      <li><strong>Share the poster</strong><span>Tap the share button above and post it anywhere</span></li>
+      <li><strong>Screenshot your post</strong><span>Capture the page showing the poster or app name</span></li>
       <li><strong>Email your screenshot</strong><span>Attach it; mask any personal details</span></li>
       <li><strong>Get your code</strong><span>We reply within 3 business days after review</span></li>
     </ol>
@@ -244,6 +259,9 @@
     document.querySelectorAll('[data-set-lang]').forEach(function (btn) {
       btn.classList.toggle('on', btn.getAttribute('data-set-lang') === next);
     });
+    document.querySelectorAll('[data-share]').forEach(function (btn) {
+      btn.setAttribute('aria-label', next === 'zh' ? '分享海报' : 'Share poster');
+    });
     document.documentElement.lang = next === 'zh' ? 'zh-CN' : 'en';
   }
 
@@ -273,22 +291,36 @@
     });
   });
 
+  var bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.receepShare;
+
+  function sharePosterOnWeb() {
+    var zh = current === 'zh';
+    var src = 'assets/poster-' + (zh ? 'zh' : 'en') + '.png';
+    var title = zh ? '落袋 · 票据只在本机' : 'Receep · on-device receipt manager';
+    var link = new URL(src, location.href).href;
+    if (!navigator.share) { window.location.href = src; return; }
+    fetch(src).then(function (r) { return r.blob(); }).then(function (blob) {
+      if (typeof File !== 'function') {
+        return navigator.share({ title: title, text: title, url: link });
+      }
+      var file = new File([blob], zh ? '落袋-海报.png' : 'Receep-Poster.png', { type: blob.type || 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        return navigator.share({ files: [file], title: title });
+      }
+      return navigator.share({ title: title, text: title, url: link });
+    }).catch(function (err) {
+      if (err && err.name === 'AbortError') return;
+      window.location.href = src;
+    });
+  }
+
   document.querySelectorAll('[data-share]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var url = 'https://apps.apple.com/app/id6826865048';
-      var data = {
-        title: 'Receep',
-        text: current === 'zh' ? 'Receep（落袋）· 票据只在本机' : 'Receep – on-device receipt manager',
-        url: url
-      };
-      if (navigator.share) {
-        navigator.share(data).catch(function () {});
-      } else if (navigator.clipboard) {
-        navigator.clipboard.writeText(url).then(function () {
-          var old = btn.textContent;
-          btn.textContent = btn.getAttribute('data-copied') || 'Link copied';
-          setTimeout(function () { btn.textContent = old; }, 1600);
-        });
+      if (bridge) {
+        // 在 App 内由原生代码接管，直接分享内置海报
+        bridge.postMessage({ lang: current });
+      } else {
+        sharePosterOnWeb();
       }
     });
   });
